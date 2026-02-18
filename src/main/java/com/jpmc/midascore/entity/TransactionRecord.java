@@ -23,17 +23,22 @@ public class TransactionRecord {
     @Column(name = "amount", nullable = false)
     private Float amount;
 
+    @Column(name = "incentive", nullable = false)  // NEW FIELD!
+    private Float incentive;
+
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
 
-    // Default constructor (required by JPA)
+    // Default constructor
     public TransactionRecord() {
     }
 
-    public TransactionRecord(User sender, User recipient, Float amount) {
+    // Updated constructor with incentive
+    public TransactionRecord(User sender, User recipient, Float amount, Float incentive) {
         this.sender = sender;
         this.recipient = recipient;
         this.amount = amount;
+        this.incentive = incentive;
         this.timestamp = LocalDateTime.now();
     }
 
@@ -70,6 +75,14 @@ public class TransactionRecord {
         this.amount = amount;
     }
 
+    public Float getIncentive() {  // NEW GETTER
+        return incentive;
+    }
+
+    public void setIncentive(Float incentive) {  // NEW SETTER
+        this.incentive = incentive;
+    }
+
     public LocalDateTime getTimestamp() {
         return timestamp;
     }
@@ -85,6 +98,7 @@ public class TransactionRecord {
                 ", senderId=" + (sender != null ? sender.getUserId() : null) +
                 ", recipientId=" + (recipient != null ? recipient.getUserId() : null) +
                 ", amount=" + amount +
+                ", incentive=" + incentive +  // NEW IN toString
                 ", timestamp=" + timestamp +
                 '}';
     }

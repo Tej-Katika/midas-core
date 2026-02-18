@@ -2,6 +2,7 @@ package com.jpmc.midascore.service;
 
 import com.jpmc.midascore.entity.TransactionRecord;
 import com.jpmc.midascore.entity.User;
+import com.jpmc.midascore.foundation.Incentive;
 import com.jpmc.midascore.foundation.Transaction;
 import com.jpmc.midascore.repository.TransactionRecordRepository;
 import com.jpmc.midascore.repository.UserRepository;
@@ -20,11 +21,15 @@ public class TransactionService {
 
     private final UserRepository userRepository;
     private final TransactionRecordRepository transactionRecordRepository;
+    private final IncentiveService incentiveService;  // NEW DEPENDENCY
 
-    public TransactionService(UserRepository userRepository,
-                              TransactionRecordRepository transactionRecordRepository) {
+    public TransactionService(
+            UserRepository userRepository,
+            TransactionRecordRepository transactionRecordRepository,
+            IncentiveService incentiveService) {  // INJECTED
         this.userRepository = userRepository;
         this.transactionRecordRepository = transactionRecordRepository;
+        this.incentiveService = incentiveService;
     }
 
     @Transactional
@@ -62,30 +67,41 @@ public class TransactionService {
             return;
         }
 
-        // Step 4: All validations passed - process transaction
-        logger.info("Transaction valid - processing");
+        // Step 4: All validations passed - get incentive from API
+        logger.info("Transaction valid - calling Incentive API");
+        Incentive incentive = incentiveService.getIncentive(transaction);
+        Float incentiveAmount = incentive.getAmount();
 
-        // Update balances
+        logger.info("Incentive received: {}", incentiveAmount);
+
+        // Step 5: Update balances
+        // Sender: deduct transaction amount ONLY (not incentive)
         sender.setBalance(sender.getBalance() - transaction.getAmount());
-        recipient.setBalance(recipient.getBalance() + transaction.getAmount());
 
-        // Create transaction record
-        TransactionRecord record = new TransactionRecord(sender, recipient, transaction.getAmount());
+        // Recipient: add transaction amount AND incentive
+        recipient.setBalance(recipient.getBalance() + transaction.getAmount() + incentiveAmount);
 
-        // Save all changes (atomic due to @Transactional)
+        // Step 6: Create transaction record with incentive
+        TransactionRecord record = new TransactionRecord(
+                sender,
+                recipient,
+                transaction.getAmount(),
+                incentiveAmount  // NEW PARAMETER
+        );
+
+        // Step 7: Save all changes (atomic due to @Transactional)
         userRepository.save(sender);
         userRepository.save(recipient);
         transactionRecordRepository.save(record);
 
-        logger.info("Transaction processed successfully. New balances - Sender: {}, Recipient: {}",
+        logger.info("Transaction processed successfully. " +
+                        "Sender balance: {}, " +
+                        "Recipient balance: {} (includes {} incentive)",
                 sender.getBalance(),
-                recipient.getBalance());
+                recipient.getBalance(),
+                incentiveAmount);
     }
 
-    /**
-     * Log all user balances - useful for debugging and finding final balances
-     * Call this method after all transactions have been processed
-     */
     @Transactional(readOnly = true)
     public void logAllBalances() {
         List<User> users = userRepository.findAll();
@@ -99,10 +115,10 @@ public class TransactionService {
                     user.getUserId(),
                     user.getBalance());
 
-            // Special handling for waldorf - calculate rounded down value
-            if ("waldorf".equalsIgnoreCase(user.getUsername())) {
+            // Special handling for wilbur - calculate rounded down value
+            if ("wilbur".equalsIgnoreCase(user.getUsername())) {
                 int roundedDown = (int) Math.floor(user.getBalance());
-                logger.info(">>> WALDORF BALANCE: {} | ROUNDED DOWN: {} <<<",
+                logger.info(">>> WILBUR BALANCE: {} | ROUNDED DOWN: {} <<<",
                         user.getBalance(),
                         roundedDown);
                 logger.info(">>> SUBMIT THIS VALUE: {} <<<", roundedDown);
@@ -113,13 +129,5 @@ public class TransactionService {
         logger.info("Total users: {}", users.size());
         logger.info("Total transactions: {}", transactionRecordRepository.count());
         logger.info("============================================================");
-    }
-
-    /**
-     * Get a specific user's balance by username
-     */
-    @Transactional(readOnly = true)
-    public Optional<User> getUserByUsername(String username) {
-        return userRepository.findByUsername(username);
     }
 }

@@ -1,6 +1,11 @@
 general:
   kafka-topic: trader-updates
 
+# Incentive API Configuration
+incentive:
+  api:
+    url: http://localhost:8080/incentive
+
 spring:
   kafka:
     consumer:
@@ -13,14 +18,12 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
-  # H2 Database Configuration
   datasource:
     url: jdbc:h2:mem:testdb
     driver-class-name: org.h2.Driver
     username: sa
     password:
 
-  # JPA/Hibernate Configuration
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
@@ -30,7 +33,6 @@ spring:
       hibernate:
         format_sql: false
 
-  # H2 Console (Optional - for debugging)
   h2:
     console:
       enabled: true
